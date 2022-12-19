@@ -273,6 +273,7 @@ jobs:
       - checkout
       - restore_cache:
           keys: [frontend-build]
+      - install_awscli
       - run:
           name: Get backend url
           command: |
