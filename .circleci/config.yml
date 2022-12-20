@@ -293,22 +293,49 @@ jobs:
       # Here's where you will add some code to rollback on failure      
       - destroy-environment
       - revert-migrations
-#   deploy-backend:
-#     docker:
-#       # Docker image here that supports Ansible
-#     steps:
-#       # Checkout code from git
-#       # Add ssh keys with fingerprint
-#       # attach workspace
-#       - run:
-#           name: Install dependencies
-#           command: |
-#             # your code here
-#       - run:
-#           name: Deploy backend
-#           command: |
-#             # your code here
-#       # Here's where you will add some code to rollback on failure  
+  deploy-backend:
+    docker:
+      # Docker image here that supports Ansible
+      - image: cimg/python:3.10
+    steps:
+      - checkout
+      - add_ssh_keys:
+          fingerprints:
+            - "4f:ea:dc:e7:f2:d2:ac:49:d6:68:25:fe:90:a0:a4:42"    
+      - attach_workspace:
+          at: ~/       
+      - restore_cache: 
+          keys: [backend-build]
+      - install_ansible
+      - install_awscli
+      - run:
+          name: Install dependencies
+          command: |
+            sudo apt update
+            sudo apt-get install tar gzip nodejs npm -y
+            cd backend
+            npm run build
+      - run:
+          name: Package backend
+          command: |
+            cd backend
+            npm install
+            npm run build
+            tar -czvf artifact.tar.gz dist/* package* 
+            cd .. 
+            cp backend/artifact.tar.gz .circleci/ansible/roles/deploy/files
+      - run:
+          name: Deploy backend
+          command: |
+            export TYPEORM_MIGRATIONS_DIR=./migrations
+            export TYPEORM_ENTITIES=./modules/domain/**/*.entity{.ts,.js}
+            export TYPEORM_MIGRATIONS=./migrations/*.ts
+            cd .circleci/ansible
+            cat inventory.txt
+            ansible-playbook -i inventory.txt deploy-backend.yml
+      # Here's where you will add some code to rollback on failure  
+      - destroy-environment
+      - revert-migrations
 
 #   smoke-test:
 #     docker:
@@ -392,8 +419,8 @@ workflows:
           requires: [configure-infrastructure]
       - deploy-frontend:
           requires: [run-migrations]
-      # - deploy-backend:
-      #     requires: [run-migrations]
+      - deploy-backend:
+          requires: [run-migrations]
       # - smoke-test:
       #     requires: [deploy-backend, deploy-frontend]
       # - cloudfront-update:
