@@ -1,9 +1,8 @@
 ---
   - name: "Creates backend app directory"
     become: true
-    file:
-      path: ~/backend-app
-      state: directory
+    shell: |
+      sudo mkdir ~/backend-app
       
   - name: "Unarchive backend files"
     become: true
